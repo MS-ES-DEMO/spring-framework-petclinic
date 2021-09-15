@@ -82,6 +82,7 @@ jobs:
         run: mvn clean package
       - name: Check if the .war exists
         run: ls target
+      - run: echo "VM IP ${{ needs.iac.outputs.vm_ip }}"
       - name: Copy war into the VM
         uses: appleboy/scp-action@master
         with:
