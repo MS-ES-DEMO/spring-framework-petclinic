@@ -1,17 +1,68 @@
 name: Build and deploy Pet Clinic App
-on: 
+on:
   push:
   workflow_dispatch:
 jobs:
-  Explore-GitHub-Actions:
+  iac:
+    runs-on: ubuntu-latest
+    outputs:
+      vm_ip: ${{ steps.tf_output.outputs.ip }}
+    steps:
+      - uses: actions/checkout@v2
+      - uses: hashicorp/setup-terraform@v1
+      - name: Terraform Init
+        run: terraform init
+        working-directory: terraform/as-is
+      - name: terraform Validate
+        run: terraform validate
+        working-directory: terraform/as-is
+      - name: Terraform Plan
+        run: terraform plan
+        working-directory: terraform/as-is
+      - uses: actions/github-script@0.9.0
+        if: github.event_name == 'pull_request'
+        env:
+          PLAN: "terraform\n${{ steps.plan.outputs.stdout }}"
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const output = `#### Terraform Format and Style 🖌\`${{ steps.fmt.outcome }}\`
+            #### Terraform Initialization ⚙️\`${{ steps.init.outcome }}\`
+            #### Terraform Validation 🤖\`${{ steps.validate.outputs.stdout }}\`
+            #### Terraform Plan 📖\`${{ steps.plan.outcome }}\`
+
+            <details><summary>Show Plan</summary>
+
+            \`\`\`\n
+            ${process.env.PLAN}
+            \`\`\`
+
+            </details>
+
+            *Pusher: @${{ github.actor }}, Action: \`${{ github.event_name }}\`, Working Directory: \`${{ env.tf_actions_working_dir }}\`, Workflow: \`${{ github.workflow }}\`*`;
+              
+            github.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: output
+            })
+      # - name: Terraform Apply
+      # - name: Get outputs from Terraform
+      #   id: tf_output
+      #   working-directory: terraform/as-is
+      #   run: |
+      #     echo "::set-output name=ip::$(terraform output -raw public_ip)"
+  deploy-tomcat-app:
+    needs: iac
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
       - name: Set up JDK 11
         uses: actions/setup-java@v2
         with:
-          java-version: '11'
-          distribution: 'adopt'
+          java-version: "11"
+          distribution: "adopt"
       - name: Build with Maven
         run: mvn clean package
       - name: Check if the .war exists
@@ -30,5 +81,5 @@ jobs:
           host: ${{ secrets.VM_IP }}
           username: ${{ secrets.VM_USERNAME }}
           password: ${{ secrets.VM_PASSWORD }}
-          script: | 
-            sudo mv /tmp/petclinic/target/petclinic.war /opt/tomcat/latest/webapps/            
+          script: |
+            sudo mv /tmp/petclinic/target/petclinic.war /opt/tomcat/latest/webapps/
