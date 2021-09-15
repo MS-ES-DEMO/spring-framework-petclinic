@@ -4,19 +4,19 @@ on:
   workflow_dispatch:
 jobs:
   iac:
+    env:
+      ARM_SUBSCRIPTION_ID: ${{ secrets.ARM_SUBSCRIPTION_ID }}
+      ARM_CLIENT_ID: ${{ secrets.ARM_CLIENT_ID }}
+      ARM_CLIENT_SECRET: ${{ secrets.ARM_CLIENT_SECRET }}
+      ARM_TENANT_ID: ${{ secrets.ARM_TENANT_ID }}
     runs-on: ubuntu-latest
     outputs:
       vm_ip: ${{ steps.tf_output.outputs.ip }}
     steps:
       - uses: actions/checkout@v2
       - uses: hashicorp/setup-terraform@v1
-        env:
-          ARM_SUBSCRIPTION_ID: ${{ secrets.ARM_SUBSCRIPTION_ID }}
-          ARM_CLIENT_ID: ${{ secrets.ARM_CLIENT_ID }}
-          ARM_CLIENT_SECRET: ${{ secrets.ARM_CLIENT_SECRET }}
-          ARM_TENANT_ID: ${{ secrets.ARM_TENANT_ID }}
         with:
-          terraform_wrapper: false          
+          terraform_wrapper: false
       - name: Terraform Init
         run: terraform init
         working-directory: terraform/as-is
